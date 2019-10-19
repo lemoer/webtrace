@@ -215,7 +215,22 @@ function readPacket(data) {
 	}
 }
 
+function getPacketProto(data) {
+	var fun = readEther;
+	var fields = "Unknown Payload";
+
+	while (fun !== null) {
+		var [fieldsNew, data, fun] = fun(data);
+
+		if (fieldsNew.layerName !== "Unknown Payload")
+			fields = fieldsNew;
+	}
+
+	return fields.layerName;
+}
+
 for (var pkt of packets) {
+	console.log(getPacketProto(pkt) + ":");
 	readPacket(pkt);
 	console.log("------");
 }
