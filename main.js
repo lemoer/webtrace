@@ -32,6 +32,17 @@ class SimpleField {
 	}
 }
 
+function Const(ret)  {
+	return class extends SimpleField {
+		constructor (inp) {
+			super();
+			this.data = ret;
+			this.length = 0;
+		}
+	};
+}
+
+
 class Byte extends SimpleField {
 	constructor (inp) {
 		super();
@@ -133,6 +144,7 @@ function readPacketObj(data, descr) {
 
 function readArp(data) {
 	var [fields, _] = readPacketObj(data, {
+		layerName: Const("ARP"),
 		hwType: Short,
 		protocolType: Short,
 		hwSize: Byte,
@@ -148,7 +160,8 @@ function readArp(data) {
 }
 
 function readIP6(data) {
-	var [fields, _] = readPacketObj(data, {
+	var [fields, dataNew] = readPacketObj(data, {
+		layerName: Const("IPv6"),
 		version_trafficClass_flowLabel: Word,
 		payloadLength: Short,
 		nextHeader: Byte,
@@ -158,17 +171,27 @@ function readIP6(data) {
 
 	});
 
+	return [fields, dataNew, readUnknown];
+}
+
+function readUnknown(data) {
+	var fields = {
+		layerName: "Unknown Payload",
+		length: data.length
+	};
+
 	return [fields, null, null];
 }
 
 function readEther(data) {
 	var [fields, dataNew] = readPacketObj(data, {
+		layerName: Const("Ethernet"),
 		dest: MAC,
 		src: MAC,
 		type: Short
 	});
 
-	var next = null;
+	var next = readUnknown;
 
 	switch (fields.type) {
 		case 0x0806:
