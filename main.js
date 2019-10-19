@@ -22,9 +22,10 @@ function byteToHex(byte) {
 }
 
 
-var a = "ffffffffffff88e640ba80170806000108000604000188e640ba80170a1150010000000000000a1153d3";
-a = "33330000000188e640baa01786dd600366fe00703afffe800000000000008ae640fffebaa017ff020000000000000000000000000001860081ff4000012c0000000000000000030440c00000012c00000096000000002a02079000ff10170000000000000000030440c00000012c0000009600000000fdcaffee00080017000000000000000019030000000000c8fdcaffee000800170000000000000001010188e640baa017";
-var b = new Uint8Array(hexToBytes(a));
+var packets = [
+	new Uint8Array(hexToBytes("ffffffffffff88e640ba80170806000108000604000188e640ba80170a1150010000000000000a1153d3")),
+	new Uint8Array(hexToBytes("33330000000188e640baa01786dd600366fe00703afffe800000000000008ae640fffebaa017ff020000000000000000000000000001860081ff4000012c0000000000000000030440c00000012c00000096000000002a02079000ff10170000000000000000030440c00000012c0000009600000000fdcaffee00080017000000000000000019030000000000c8fdcaffee000800170000000000000001010188e640baa017"))
+];
 
 class SimpleField {
 	toString() {
@@ -109,7 +110,7 @@ class IP6 extends SimpleField {
 	}
 }
 
-function readPacket(data, fields) {
+function readStream(data, fields) {
 	var idx = 0;
 	var fieldResults = [];
 	var ref;
@@ -135,15 +136,15 @@ function genFields(f, names) {
 	return res;
 }
 
-function readPacketObj(data, descr) {
-	var [res, dataNew] = readPacket(data, Object.values(descr));
+function readStreamObj(data, descr) {
+	var [res, dataNew] = readStream(data, Object.values(descr));
 	var fields = genFields(res, Object.keys(descr));
 
 	return [fields, dataNew];
 }
 
 function readArp(data) {
-	var [fields, _] = readPacketObj(data, {
+	var [fields, _] = readStreamObj(data, {
 		layerName: Const("ARP"),
 		hwType: Short,
 		protocolType: Short,
@@ -160,7 +161,7 @@ function readArp(data) {
 }
 
 function readIP6(data) {
-	var [fields, dataNew] = readPacketObj(data, {
+	var [fields, dataNew] = readStreamObj(data, {
 		layerName: Const("IPv6"),
 		version_trafficClass_flowLabel: Word,
 		payloadLength: Short,
@@ -168,7 +169,6 @@ function readIP6(data) {
 		hopLimit: Byte,
 		srcIP6: IP6,
 		destIP6: IP6
-
 	});
 
 	return [fields, dataNew, readUnknown];
@@ -184,7 +184,7 @@ function readUnknown(data) {
 }
 
 function readEther(data) {
-	var [fields, dataNew] = readPacketObj(data, {
+	var [fields, dataNew] = readStreamObj(data, {
 		layerName: Const("Ethernet"),
 		dest: MAC,
 		src: MAC,
@@ -205,12 +205,17 @@ function readEther(data) {
 	return [fields, dataNew, next]
 }
 
-var data = b;
+function readPacket(data) {
+	var fun = readEther;
 
-var fun = readEther;
+	while (fun !== null) {
+		// console.log(data);
+		var [fields, data, fun] = fun(data);
+		console.log(fields);
+	}
+}
 
-while (fun !== null) {
-	// console.log(data);
-	var [fields, data, fun] = fun(data);
-	console.log(fields);
+for (var pkt of packets) {
+	readPacket(pkt);
+	console.log("------");
 }
