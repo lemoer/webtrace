@@ -23,6 +23,7 @@ function byteToHex(byte) {
 
 
 var a = "ffffffffffff88e640ba80170806000108000604000188e640ba80170a1150010000000000000a1153d3";
+a = "33330000000188e640baa01786dd600366fe00703afffe800000000000008ae640fffebaa017ff020000000000000000000000000001860081ff4000012c0000000000000000030440c00000012c00000096000000002a02079000ff10170000000000000000030440c00000012c0000009600000000fdcaffee00080017000000000000000019030000000000c8fdcaffee000800170000000000000001010188e640baa017";
 var b = new Uint8Array(hexToBytes(a));
 
 class SimpleField {
@@ -44,6 +45,14 @@ class Short extends SimpleField {
 		super();
 		this.data = inp[0]*256 + inp[1];
 		this.length = 2;
+	}
+}
+
+class Word extends SimpleField {
+	constructor (inp) {
+		super();
+		this.data = inp[0]*(256**3) + inp[1]*(256**2) + inp[2]*(256**1) + inp[3]*(256**2);
+		this.length = 4;
 	}
 }
 
@@ -72,6 +81,20 @@ class IP extends SimpleField {
 		}
 		this.data = res;
 		this.length = 4;
+	}
+}
+
+class IP6 extends SimpleField {
+	constructor (inp) {
+		super();
+		var res = "";
+		for (var i = 0; i < 16; i++) {
+			if (i !== 0 && i % 2 == 0)
+				res += ":";
+			res += byteToHex(inp[i]);
+		}
+		this.data = res;
+		this.length = 16;
 	}
 }
 
@@ -124,6 +147,20 @@ function readArp(data) {
 	return [fields, null, null];
 }
 
+function readIP6(data) {
+	var [fields, _] = readPacketObj(data, {
+		version_trafficClass_flowLabel: Word,
+		payloadLength: Short,
+		nextHeader: Byte,
+		hopLimit: Byte,
+		srcIP6: IP6,
+		destIP6: IP6
+
+	});
+
+	return [fields, null, null];
+}
+
 function readEther(data) {
 	var [fields, dataNew] = readPacketObj(data, {
 		dest: MAC,
@@ -133,8 +170,14 @@ function readEther(data) {
 
 	var next = null;
 
-	if (fields.type === 0x0806)
-		next = readArp;
+	switch (fields.type) {
+		case 0x0806:
+			next = readArp;
+			break;
+		case 0x86dd:
+			next = readIP6;
+			break;
+	}
 
 	return [fields, dataNew, next]
 }
