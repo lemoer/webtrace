@@ -51,7 +51,7 @@ class Short extends SimpleField {
 class Word extends SimpleField {
 	constructor (inp) {
 		super();
-		this.data = inp[0]*(256**3) + inp[1]*(256**2) + inp[2]*(256**1) + inp[3]*(256**2);
+		this.data = inp[0]*(256**3) + inp[1]*(256**2) + inp[2]*(256**1) + inp[3];
 		this.length = 4;
 	}
 }
